@@ -27,3 +27,10 @@ module "akscluster-module" {
   depends_on = [module.rg-module]
 
 }
+
+module "storage-module" {
+  source     = "../../modules/storage-module"
+  stg   = var.storage-groups
+  depends_on = [module.rg-module]
+
+}
