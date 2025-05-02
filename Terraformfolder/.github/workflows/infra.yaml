@@ -1,39 +1,70 @@
 name: Deploy Terraform using OIDC and Managed Identity
 
 on:
-  push:
-    branches:
-      - main
-
+  workflow_dispatch:
+    inputs:
+      ENVIRONMENT:
+        description: 'it is infra deployment'
+        required: true
+        default: 'dev'
+        type: string
+         
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
+  terraform:
+    name: terraform deploy
+    runs-on: windows-latest
+    environment: ${{ inputs.ENVIRONMENT }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout Repository 
+        uses: actions/checkout@v4
 
-      - name: Azure Login (OIDC)
-        uses: azure/login@v1
+      - name: Azure Login using fedreat credentials (OIDC)
+        uses: azure/login@v2
         with:
-          client-id: 10181035-fa51-4659-bfe0-d438300e3ecd
-          tenant-id: 1f52aad1-0c09-422a-81d7-bce39af810c1
-          subscription-id: 1f43e7c1-4e8a-4da0-877f-76b7cb3e5898
-
+          client-id: ${{ secrets.MYSECRETINFRA }}
+          tenant-id: ${{ secrets.MYTENANT }}
+          subscription-id: ${{ secrets.MYSUBSCRIPTION }}
+          auth-type: 'service-principal'
+          
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.5.7
+          terraform_version: 1.11.4
+      - name: create terraform.tfvars from secrets 
+        run: |
+          echo "${{ secrets.MYTERRAFORMTFVARS }}" > terraform.tfvars
+          working_directory = tf-landing-zone-code\Terraformfolder\environment\dev
+      - name: add subscription id on provider.tf
+        run: |
+          echo 'provider "azurerm" {
+            features {}
+            subscription_id = "${{ secrets.MYSUBSCRIPTION }}"
+          }' > provider.tf
+          working_directory = tf-landing-zone-code\Terraformfolder\environment\dev
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6  # Apna version yahan daalein
+            
       - name: Terraform Init
         run: terraform init
+        working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
+        shell: pwsh
 
+      - name: Terraform validate 
+        run: |
+          terraform fmt -check=true
+          terraform validate
+          working-directory = tf-landing-zone-code\Terraformfolder\environment\dev
       - name: Terraform Plan
-        run: terraform plan
-
+        run: terraform plan -out=tfplan -input=false -no-color -var-file=terraform.tfvars
+        working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
+       
       - name: Terraform Apply
         run: terraform apply -auto-approve
+        working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
