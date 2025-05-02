@@ -18,53 +18,54 @@ jobs:
     name: terraform deploy
     runs-on: windows-latest
     environment: ${{ inputs.ENVIRONMENT }}
+
     steps:
       - name: Checkout Repository 
         uses: actions/checkout@v4
 
-      - name: Azure Login using fedreat credentials (OIDC)
+      - name: Azure Login using federated credentials (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.MYSECRETINFRA }}
           tenant-id: ${{ secrets.MYTENANT }}
           subscription-id: ${{ secrets.MYSUBSCRIPTION }}
           auth-type: 'service-principal'
-          
+
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.11.4
-      - name: create terraform.tfvars from secrets 
-        run: |
-          echo "${{ secrets.MYTERRAFORMTFVARS }}" > terraform.tfvars
-          working_directory = tf-landing-zone-code\Terraformfolder\environment\dev
-      - name: add subscription id on provider.tf
+          terraform_version: 1.6.6
+
+      - name: Create terraform.tfvars from secrets 
+        run: echo "${{ secrets.MYTERRAFORMTFVARS }}" > terraform.tfvars
+        working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
+
+      - name: Add subscription ID to provider.tf
         run: |
           echo 'provider "azurerm" {
             features {}
             subscription_id = "${{ secrets.MYSUBSCRIPTION }}"
           }' > provider.tf
-          working_directory = tf-landing-zone-code\Terraformfolder\environment\dev
+        working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6  # Apna version yahan daalein
-            
       - name: Terraform Init
         run: terraform init
         working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
         shell: pwsh
 
-      - name: Terraform validate 
+      - name: Terraform Validate 
         run: |
           terraform fmt -check=true
           terraform validate
-          working-directory = tf-landing-zone-code\Terraformfolder\environment\dev
+        working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
+        shell: pwsh
+
       - name: Terraform Plan
         run: terraform plan -out=tfplan -input=false -no-color -var-file=terraform.tfvars
         working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
-       
+        shell: pwsh
+
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve tfplan
         working-directory: tf-landing-zone-code/Terraformfolder/environment/dev
+        shell: pwsh
