@@ -6,7 +6,12 @@ on:
       ENVIRONMENT:
         description: 'it is infra deployment'
         required: true
-        default: 'dev'
+       
+        options:
+          - dev
+          - test
+          - prod
+          - uat
         type: string
          
 permissions:
